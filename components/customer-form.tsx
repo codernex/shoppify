@@ -21,10 +21,13 @@ import {
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import {useEffect, useState} from 'react';
-import {getNameCheck, loadCountryStates} from '@/hooks';
+import {getNameCheck, getZipCodeAutoComplete, loadCountryStates} from '@/hooks';
 import {cn} from "@/lib/utils";
+import PostCodeAutoComplete from "@/components/PostCodeAutoComplete";
+import CityAutoComplete from "@/components/CityAutoComplete";
+import StreetAutoCompletion from "@/components/StreetAutoCompletion";
 
-const shippingFormSchema = z.object({
+export const shippingFormSchema = z.object({
   salutation: z.string(),
   firstname: z.string(),
   lastname: z.string(),
@@ -32,7 +35,7 @@ const shippingFormSchema = z.object({
   password: z.string().min(8),
   country: z.string(),
   state: z.string(),
-  zipCode: z.string(),
+  postCode: z.string(),
   city: z.string(),
   street: z.string(),
   houseNumber: z.string()
@@ -44,18 +47,16 @@ const countryData= [
         countryCode: 'DE',
         language: 'de',
         countryName: 'Germany'
-    },
-    {
-        countryId: '84702aaa0e434716a805a4e35bdf0bb4',
-        countryCode: 'BD',
-        language: 'bd',
-        countryName: 'Bangladesh'
     }
 ]
 
 
 
 export const CustomerForm = () => {
+
+    const [isMounted,setIsMounted] =useState(false)
+
+    useEffect(()=>setIsMounted(true),[])
     // Country State Data
     const [countryState,setCountryState]=useState<CountryState[]>([])
     //Name Change Data
@@ -66,11 +67,13 @@ export const CustomerForm = () => {
     })
 
     // Zip Code Suggestions Data
-    const [zipCodeSuggestionsData,setZipCodeSuggestionsData]=useState([])
+    const [zipCodeSuggestionsData,setZipCodeSuggestionsData]=useState<ZipCodeResponse[]>([])
 
   const form = useForm<z.infer<typeof shippingFormSchema>>({
     resolver: zodResolver(shippingFormSchema)
   });
+
+
 
 
 
@@ -82,16 +85,6 @@ export const CustomerForm = () => {
     // Watch Country Data
     const country= form.getValues("country")||countryData[0].countryId
 
-    // Zip Code Watch
-
-    const zipcode=form.watch("zipCode")
-
-    useEffect(()=>{
-        console.log("Ehllo")
-    },[zipcode])
-
-
-
 
 
     //Coutnry Data
@@ -100,6 +93,7 @@ export const CustomerForm = () => {
         loadCountryStates(country).then((result) => {
             setCountryState(result)
         })
+
     }, [country])
 
     // Send API request when any of the three fields are updated
@@ -127,6 +121,14 @@ export const CustomerForm = () => {
            verifyNameData();
        }
     }, [salutation, firstName, lastName]);
+
+    useEffect(()=>{
+        form.setValue('country',countryData[0].countryId)
+    },[])
+
+    if(!isMounted){
+        return  null
+    }
 
 
   return (
@@ -212,10 +214,6 @@ export const CustomerForm = () => {
                 <FormItem>
                   <FormLabel>New E-mail Address*</FormLabel>
                   <FormControl
-                  className={
-
-                      cn('border',!form.formState.errors.email?"border-green-500":"border-red-500")
-                  }
                   >
                     <Input
                       autoComplete='off'
@@ -304,40 +302,28 @@ export const CustomerForm = () => {
 
           <div className='grid grid-cols-12 gap-8'>
             <div className='col-span-2'>
-              <FormField
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Post Code*</FormLabel>
-                    <FormControl>
-                      <Input
-                        autoComplete='off'
-                        placeholder={'Enter Your Zip Code...'}
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-                name='zipCode'
-              />
+                       <FormField render={
+                           ()=>(
+                               <FormItem>
+                                   <FormLabel>Post Code*</FormLabel>
+                                   <FormControl>
+                                       <PostCodeAutoComplete countryData={countryData} countryState={countryState} form={form}/>
+                                   </FormControl>
+                               </FormItem>
+                           )
+                       } name={'postCode'}/>
             </div>
             <div className='col-span-4'>
-              <FormField
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>City*</FormLabel>
-                    <FormControl>
-                      <Input
-                        autoComplete='off'
-                        placeholder={'Enter Your City'}
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-                name='city'
-              />
+                <FormField render={
+                    ()=>(
+                        <FormItem>
+                            <FormLabel>City*</FormLabel>
+                            <FormControl>
+                                <CityAutoComplete countryData={countryData} countryState={countryState} form={form}/>
+                            </FormControl>
+                        </FormItem>
+                    )
+                } name={'city'}/>
             </div>
             <div className='col-span-4'>
               <FormField
@@ -345,11 +331,7 @@ export const CustomerForm = () => {
                   <FormItem>
                     <FormLabel>Street Address*</FormLabel>
                     <FormControl>
-                      <Input
-                        autoComplete='off'
-                        placeholder={'Street Address'}
-                        {...field}
-                      />
+                     <StreetAutoCompletion form={form} countryData={countryData}/>
                     </FormControl>
                     <FormMessage />
                   </FormItem>

@@ -1,6 +1,8 @@
 import axios from 'axios';
 
 
+const baseUrl=`${process.env.NEXT_PUBLIC_API_URL}/endereco`
+
 function generateRequestParameter(method:string, params:string) {
   return {
     jsonrpc: '2.0',
@@ -9,47 +11,63 @@ function generateRequestParameter(method:string, params:string) {
     params: params
   };
 }
-export const UseAddressCheck = async requestData => {
-  const response = await axios.post(
-    'http://localhost:3001/endereco',
-    generateRequestParameter('addressCheck', requestData)
-  );
-
-  return response.data.result;
-};
 
 export const getZipCodeAutoComplete = async (requestData: {
-  zipCode:string
+  zipCode:string,
+    country:string,
+    language:string
 }) => {
   const response = await axios.post(
-    'http://localhost:3001/endereco',
+      baseUrl,
       {
         "jsonrpc": "2.0",
         "id": 1,
-        "method": "nameCheck",
+        "method": "postCodeAutocomplete",
         "params": {
-         "zipCode":
+         "postCode":requestData.zipCode, "country":requestData.country, "language":requestData.language
         }
       }
 
   );
-  generateRequestParameter('postCodeAutocomplete', requestData)
   return response.data.result;
 };
 
-export const UseCityNameAutocomplete = async requestData => {
+export const getCityNameAutoComplete = async (requestData:{
+    cityName:string,
+    country:string,
+    language:string
+}
+) => {
   const response = await axios.post(
-    'http://localhost:3001/endereco',
-    generateRequestParameter('cityNameAutocomplete', requestData)
+      baseUrl,{
+          "jsonrpc": "2.0",
+          "id": 1,
+          "method": "cityNameAutocomplete",
+          "params": {
+              "cityName":requestData.cityName, "country":requestData.country, "language":requestData.language
+          }
+      }
   );
 
-  return response.data.result;
+  return response.data.result as {predictions:CityData[]};
 };
 
-export const UseStreetAutocomplete = async requestData => {
+export const getStreetNames = async (requestData:{cityName:string,country:string,houseNumber:string,language:string,postCode:string,street:string}) => {
   const response = await axios.post(
-    'http://localhost:3001/endereco',
-    generateRequestParameter('streetAutocomplete', requestData)
+      baseUrl,
+      {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "method": "streetAutocomplete",
+          "params": {
+              "cityName":requestData.cityName ,
+              "country": requestData.country,
+              "houseNumber": requestData.houseNumber,
+              "language": requestData.language,
+              "postCode": requestData.postCode,
+              "street": requestData.street
+          }
+      }
   );
 
   return response.data.result;
@@ -66,7 +84,7 @@ export const UseStreetAutocomplete = async requestData => {
 
 export const getNameCheck = async ({lastName,firstName,salutation}: {firstName:string,lastName:string,salutation:string}) => {
   const response = await axios.post(
-    'http://localhost:3001/endereco',
+      baseUrl,
       {
         "jsonrpc": "2.0",
         "id": 1,
@@ -81,37 +99,14 @@ export const getNameCheck = async ({lastName,firstName,salutation}: {firstName:s
   return response.data.result;
 };
 
-export const UsePhoneCheck = async requestData => {
-  const response = await axios.post(
-    'http://localhost:3001/endereco',
-    generateRequestParameter('phoneCheck', requestData)
-  );
 
-  return response.data.result;
-};
 
-export const UseIbanCheck = async requestData => {
-  const response = await axios.post(
-    'http://localhost:3001/endereco',
-    generateRequestParameter('ibanCheck', requestData)
-  );
 
-  return response.data.result;
-};
-
-export const UseVatIdCheck = async requestData => {
-  const response = await axios.post(
-    'http://localhost:3001/endereco',
-    generateRequestParameter('vatIdCheck', requestData)
-  );
-
-  return response.data.result;
-};
 
 
 
 export const loadCountryStates = async (countryId:string) => {
-  const response = await axios.post('http://localhost:3001/countryData', {
+  const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/countryData`, {
     countryId
   });
   return response.data.states as CountryState[];
