@@ -24,6 +24,7 @@ pnpm dev
 - All Input Fields Modified For Better Performance
 - Auto Completion Problem Solved
 - Error Handling Done
+- Used Typescript For Type Safety Of This Application
 
 ## TODO:
 - Address Verification Modal
