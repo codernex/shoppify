@@ -1,8 +1,11 @@
 ## Shopify App Refraction in Next.js of [awerudev / shopifyapp](https://github.com/awerudev/shopifyapp/tree/main)
 
+## How to use
 First, run the development server:
 
+
 ```bash
+change NEXT_PUBLIC_API_URL=YOUR_API_URL
 npm install
 
 npm run dev
