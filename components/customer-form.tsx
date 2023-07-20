@@ -21,7 +21,12 @@ import {
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { useEffect, useState } from 'react';
-import { addressCheck, getNameCheck, loadCountryStates } from '@/hooks';
+import {
+  addressCheck,
+  emailCheck,
+  getNameCheck,
+  loadCountryStates
+} from '@/hooks';
 import { cn } from '@/lib/utils';
 import PostCodeAutoComplete from '@/components/PostCodeAutoComplete';
 import CityAutoComplete from '@/components/CityAutoComplete';
@@ -31,6 +36,8 @@ import { useDialogModal } from '@/hooks/useDialogModal';
 import { WrongAddressModal } from './WrongAddressModal';
 import { useInvalidModal } from '@/hooks/useInvalidModal';
 import { InvalidAddressModal } from './InvalidAddressModal';
+import { useAddressConfirmation } from '@/hooks/useAddressConfirmation';
+import { FileWarningIcon, MailWarning } from 'lucide-react';
 
 export const shippingFormSchema = z.object({
   salutation: z.string(),
@@ -58,7 +65,19 @@ const countryData = [
 export const CustomerForm = () => {
   const [isMounted, setIsMounted] = useState(false);
 
+  const isConfirmed = useAddressConfirmation(state => state.isConfirmed);
+
+  const isInvalid = useAddressConfirmation(state => state.isInvalid);
+  const setInvalid = useAddressConfirmation(state => state.setInvalid);
+  const setConfirm = useAddressConfirmation(state => state.setConfirm);
+  const setConfirmFalse = useAddressConfirmation(
+    state => state.setConfirmFalse
+  );
+
   useEffect(() => setIsMounted(true), []);
+
+  //Pasword Field validation
+  const [isValidPassword, setIsValidPassword] = useState(false);
   // Country State Data
   const [countryState, setCountryState] = useState<CountryState[]>([]);
   //Name Change Data
@@ -68,11 +87,18 @@ export const CustomerForm = () => {
     predictions: []
   });
 
-  // Dialog Type
-  const [dialogType, setDialogType] = useState<'wrong' | 'incorrect'>('');
+  // Email Check Response
+  const [emailCheckResponse, setEmailCheckResponse] = useState<string[]>([]);
 
   const form = useForm<z.infer<typeof shippingFormSchema>>({
-    resolver: zodResolver(shippingFormSchema)
+    resolver: zodResolver(shippingFormSchema),
+    defaultValues:
+      countryData && countryState
+        ? {
+            country: countryData[0]?.countryId,
+            state: countryState[0]?.id
+          }
+        : {}
   });
 
   // Watch the values of salutation, firstname, and lastname
@@ -82,6 +108,10 @@ export const CustomerForm = () => {
 
   // Watch Country Data
   const country = form.getValues('country') || countryData[0].countryId;
+  const postCode = form.getValues('postCode');
+  const street = form.getValues('street');
+  const houseNumber = form.getValues('houseNumber');
+  const city = form.getValues('city');
 
   //Coutnry Data
   useEffect(() => {
@@ -152,22 +182,21 @@ export const CustomerForm = () => {
 
   // Function to handle API call and response
   const handleAPICall = async () => {
-    try {
-      const result: { status: string[]; predictions: PredictionForAddress[] } =
-        await addressCheck({
-          cityName: form.getValues('city'),
-          country: countryData[0].countryCode,
-          language: countryData[0].language,
-          postCode: form.getValues('postCode'),
-          houseNumber: form.getValues('houseNumber'),
-          street: form.getValues('street')
-        });
+    if (postCode && country && city && houseNumber && street) {
+      const result: {
+        status: string[];
+        predictions: PredictionForAddress[];
+      } = await addressCheck({
+        cityName: form.getValues('city'),
+        country: countryData[0].countryCode,
+        language: countryData[0].language,
+        postCode: form.getValues('postCode'),
+        houseNumber: form.getValues('houseNumber'),
+        street: form.getValues('street')
+      });
 
       if (result.status && result.status.length > 0) {
         const correct = result.status.filter(st => st === 'address_correct');
-
-        console.log(correct);
-
         if (correct.length === 0) {
           if (result.predictions.length > 0) {
             dialogModal.onOpen({
@@ -197,11 +226,13 @@ export const CustomerForm = () => {
             });
           }
         }
+        if (result.status.includes('address_correct')) {
+          setConfirm();
+          form.setFocus('firstname');
+        }
       }
-
-      // Save the API response in state
-    } catch (error) {
-      console.error('Error calling API:', error);
+    } else {
+      setInvalid();
     }
   };
 
@@ -214,10 +245,12 @@ export const CustomerForm = () => {
       <WrongAddressModal
         isOpen={dialogModal.isOpen}
         onClose={dialogModal.onClose}
+        form={form}
       />
       <InvalidAddressModal
         isOpen={invalidModal.isOpen}
         onClose={invalidModal.onClose}
+        form={form}
       />
       <h1 className='text-xl font-semibold'>I'm a new customer</h1>
       <hr className='my-4 text-black' />
@@ -281,9 +314,7 @@ export const CustomerForm = () => {
                     <Input
                       autoComplete='off'
                       placeholder={'First Name'}
-                      onChange={async e => {
-                        field.onChange(e);
-                      }}
+                      {...field}
                     />
                   </FormControl>
                   <FormMessage />
@@ -317,30 +348,68 @@ export const CustomerForm = () => {
               name='lastname'
             />
             <FormField
-              render={({ field }) => (
+              render={({ field: { name, onBlur, onChange, ref, value } }) => (
                 <FormItem>
                   <FormLabel>New E-mail Address*</FormLabel>
-                  <FormControl>
+                  <FormControl
+                    className={cn(
+                      '',
+                      emailCheckResponse.includes('email_not_correct')
+                        ? 'border border-red-300'
+                        : emailCheckResponse.includes('A1000')
+                        ? 'border border-green-500'
+                        : ''
+                    )}
+                  >
                     <Input
                       autoComplete='off'
                       placeholder={'Enter a new email address..'}
-                      {...field}
+                      value={value}
+                      name={name}
+                      onChange={onChange}
+                      ref={ref}
+                      onBlur={() => {
+                        emailCheck(value).then(result =>
+                          setEmailCheckResponse(result.status)
+                        );
+                        onBlur();
+                      }}
                     />
                   </FormControl>
+                  {emailCheckResponse.includes('email_not_correct') && (
+                    <p className='text-red-400 flex gap-x-2 items-center text-xs'>
+                      <MailWarning size={12} /> Email Not Correct
+                    </p>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}
               name='email'
             />
             <FormField
-              render={({ field }) => (
+              render={({ field: { onBlur, ...field } }) => (
                 <FormItem>
                   <FormLabel>Password*</FormLabel>
-                  <FormControl>
+                  <FormControl
+                    className={cn(
+                      '',
+                      field.value?.length >= 8
+                        ? 'border border-green-500'
+                        : isValidPassword
+                        ? 'border border-red-300'
+                        : ''
+                    )}
+                  >
                     <Input
                       autoComplete='off'
                       placeholder={'Enter password..'}
                       type='password'
+                      onBlur={() => {
+                        if (field.value?.length < 8) {
+                          setIsValidPassword(true);
+                        }
+                        onBlur();
+                      }}
                       {...field}
                     />
                   </FormControl>
@@ -366,7 +435,12 @@ export const CustomerForm = () => {
                     onValueChange={field.onChange}
                     defaultValue={countryData[0].countryId}
                   >
-                    <FormControl>
+                    <FormControl
+                      className={cn(
+                        '',
+                        isConfirmed ? 'border border-green-500' : ''
+                      )}
+                    >
                       <SelectTrigger>
                         <SelectValue
                           defaultValue={field.value}
@@ -393,8 +467,21 @@ export const CustomerForm = () => {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Fedaral State *</FormLabel>
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <FormControl>
+                  <Select
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    defaultValue={countryState && countryState[0]?.id}
+                  >
+                    <FormControl
+                      className={cn(
+                        '',
+                        isConfirmed && field.value?.length
+                          ? 'border border-green-500'
+                          : isConfirmed && !field.value?.length
+                          ? 'border border-red-300'
+                          : ''
+                      )}
+                    >
                       <SelectTrigger>
                         <SelectValue
                           defaultValue={field.value}
@@ -422,7 +509,13 @@ export const CustomerForm = () => {
                 render={() => (
                   <FormItem>
                     <FormLabel>Post Code*</FormLabel>
-                    <FormControl>
+                    <FormControl
+                      className={cn(
+                        '',
+                        isConfirmed ? 'border border-green-500' : '',
+                        isInvalid ? 'border border-red-400' : ''
+                      )}
+                    >
                       <PostCodeAutoComplete
                         countryData={countryData}
                         countryState={countryState}
@@ -439,7 +532,13 @@ export const CustomerForm = () => {
                 render={() => (
                   <FormItem>
                     <FormLabel>City*</FormLabel>
-                    <FormControl>
+                    <FormControl
+                      className={cn(
+                        '',
+                        isConfirmed ? 'border border-green-500' : '',
+                        isInvalid ? 'border border-red-400' : ''
+                      )}
+                    >
                       <CityAutoComplete
                         countryData={countryData}
                         countryState={countryState}
@@ -473,7 +572,16 @@ export const CustomerForm = () => {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>House Number*</FormLabel>
-                    <FormControl>
+                    <FormControl
+                      className={cn(
+                        '',
+                        isConfirmed
+                          ? 'border border-green-500'
+                          : isInvalid
+                          ? 'border border-red-400'
+                          : ''
+                      )}
+                    >
                       <Input
                         autoComplete='off'
                         placeholder={'House Number'}

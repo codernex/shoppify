@@ -139,3 +139,14 @@ export const addressCheck = async (requestData: {
 
   return response.data.result;
 };
+
+export const emailCheck = async (email: string) => {
+  const response = await axios.post(baseUrl, {
+    id: 1,
+    jsonrpc: '2.0',
+    method: 'emailCheck',
+    params: { email }
+  });
+
+  return response.data.result as { status: string[] };
+};

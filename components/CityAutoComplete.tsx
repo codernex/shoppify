@@ -6,6 +6,8 @@ import { UseFormReturn } from 'react-hook-form';
 import { z } from 'zod';
 import { shippingFormSchema } from '@/components/customer-form';
 import { CityData, CountryData, CountryState } from '@/types';
+import { useAddressConfirmation } from '@/hooks/useAddressConfirmation';
+import { cn } from '@/lib/utils';
 
 interface ICityProps {
   countryData: CountryData[];
@@ -21,6 +23,8 @@ export default function CityAutoComplete({
   const [cityData, setCityData] = useState<CityData[]>([]);
   const [selected, setSelected] = useState(cityData[0]);
   const [query, setQuery] = useState('');
+  const isConfirmed = useAddressConfirmation(state => state.isConfirmed);
+  const isInvalid = useAddressConfirmation(state => state.isInvalid);
 
   const filteredCityData = useMemo(() => {
     return query === ''
@@ -48,7 +52,14 @@ export default function CityAutoComplete({
       <div className='relative mt-1'>
         <div className='relative w-full cursor-default overflow-hidden rounded-lg bg-white text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-teal-300 sm:text-sm'>
           <Combobox.Input
-            className='flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50'
+            className={cn(
+              'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50',
+              isConfirmed
+                ? 'border border-green-500'
+                : isInvalid
+                ? 'border border-red-400'
+                : ''
+            )}
             displayValue={() => formValue}
             onChange={event => {
               form.setValue('city', event.target.value);

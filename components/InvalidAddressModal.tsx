@@ -1,24 +1,38 @@
 'use client';
 
-import { useDialogModal } from '@/hooks/useDialogModal';
 import { Dialog, Transition } from '@headlessui/react';
-import { Fragment, useState } from 'react';
-import { Checkbox } from './ui/checkbox';
+import { Fragment } from 'react';
 import { useInvalidModal } from '@/hooks/useInvalidModal';
 import { cn } from '@/lib/utils';
-
+import { UseFormReturn } from 'react-hook-form';
+import { z } from 'zod';
+import { shippingFormSchema } from './customer-form';
+import { useAddressConfirmation } from '@/hooks/useAddressConfirmation';
 interface InvalidAddressModalProps {
   isOpen: boolean;
   onClose: () => void;
+  form: UseFormReturn<z.infer<typeof shippingFormSchema>>;
 }
 
 export const InvalidAddressModal: React.FC<InvalidAddressModalProps> = ({
   isOpen,
-  onClose
+  onClose,
+  form
 }) => {
   const data = useInvalidModal(state => state.data);
 
-  console.log(data?.status);
+  const onConfirmAddress = useAddressConfirmation(state => state.setConfirm);
+
+  const onConfirm = () => {
+    if (data) {
+      form.setValue('city', data.originalAddress.cityName);
+      form.setValue('postCode', data.originalAddress.postCode);
+      form.setValue('street', data.originalAddress.street);
+      form.setValue('houseNumber', data.originalAddress.houseNumber);
+      onConfirmAddress();
+      form.setFocus('firstname');
+    }
+  };
 
   return (
     <Transition appear show={isOpen} as={Fragment}>
@@ -122,10 +136,28 @@ export const InvalidAddressModal: React.FC<InvalidAddressModalProps> = ({
                         >
                           {data?.originalAddress.houseNumber} <br />
                         </span>
-                        <span className=''>
+                        <span
+                          className={cn(
+                            '',
+                            data.status?.includes(
+                              'postal_code_needs_correction'
+                            )
+                              ? 'bg-red-100 border-b border-red-300'
+                              : 'postal_code_needs_correction'
+                          )}
+                        >
                           {data?.originalAddress.postCode}
                         </span>{' '}
-                        {data?.originalAddress.cityName}
+                        <span
+                          className={cn(
+                            '',
+                            data.status?.includes('locality_needs_correction')
+                              ? 'bg-red-100 border-b border-red-300'
+                              : ''
+                          )}
+                        >
+                          {data?.originalAddress.cityName}
+                        </span>
                       </label>
                     </div>
                   </div>
@@ -141,6 +173,7 @@ export const InvalidAddressModal: React.FC<InvalidAddressModalProps> = ({
                     type='button'
                     className='inline-flex justify-center rounded-md border border-transparent bg-gray-500 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2'
                     onClick={() => {
+                      onConfirm();
                       onClose();
                     }}
                   >

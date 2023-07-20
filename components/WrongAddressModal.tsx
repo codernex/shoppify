@@ -4,15 +4,22 @@ import { useDialogModal } from '@/hooks/useDialogModal';
 import { Dialog, Transition } from '@headlessui/react';
 import { Fragment, useState } from 'react';
 import { Checkbox } from './ui/checkbox';
+import { cn } from '@/lib/utils';
+import { UseFormReturn } from 'react-hook-form';
+import { z } from 'zod';
+import { shippingFormSchema } from './customer-form';
+import { useAddressConfirmation } from '@/hooks/useAddressConfirmation';
 
 interface WrongAddressModalProps {
   isOpen: boolean;
   onClose: () => void;
+  form: UseFormReturn<z.infer<typeof shippingFormSchema>>;
 }
 
 export const WrongAddressModal: React.FC<WrongAddressModalProps> = ({
   isOpen,
-  onClose
+  onClose,
+  form
 }) => {
   const data = useDialogModal(state => state.data);
 
@@ -29,6 +36,18 @@ export const WrongAddressModal: React.FC<WrongAddressModalProps> = ({
     street: '',
     postCode: ''
   });
+  const onConfirmAddress = useAddressConfirmation(state => state.setConfirm);
+
+  const onConfirm = () => {
+    if (data && checkedData) {
+      form.setValue('city', checkedData.cityName);
+      form.setValue('postCode', checkedData.postCode);
+      form.setValue('street', checkedData.street);
+      form.setValue('houseNumber', checkedData.houseNumber);
+      onConfirmAddress();
+      form.setFocus('firstname');
+    }
+  };
 
   return (
     <Transition appear show={isOpen} as={Fragment}>
@@ -95,12 +114,59 @@ export const WrongAddressModal: React.FC<WrongAddressModalProps> = ({
                         htmlFor='predictions'
                         className='text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 '
                       >
-                        {data.predictions.street} ,{'  '}
-                        {data.predictions.houseNumber} <br />
-                        <span className='bg-green-100 border-b border-b-green-300'>
+                        <span
+                          className={cn(
+                            '',
+                            data.predictions.street !==
+                              data.originalAddress.street
+                          )}
+                        >
+                          <span>
+                            {data.predictions.street.substring(
+                              0,
+                              data.originalAddress.street.length
+                            )}
+                          </span>
+                          <span className='bg-green-100'>
+                            {data.predictions.street.substring(
+                              data.originalAddress.street.length
+                            )}
+                          </span>
+                        </span>
+                        <span
+                          className={cn(
+                            '',
+                            data.predictions.houseNumber !==
+                              data.originalAddress.houseNumber
+                              ? 'bg-green-100'
+                              : ''
+                          )}
+                        >
+                          {data.predictions.houseNumber}
+                        </span>
+                        <br />
+                        <span
+                          className={cn(
+                            '',
+                            data.predictions.postCode !==
+                              data.originalAddress.postCode
+                              ? 'bg-green-100 border-b border-b-green-300'
+                              : ''
+                          )}
+                        >
                           {data.predictions.postCode}
                         </span>{' '}
-                        {data.predictions.cityName}
+                        <span
+                          className={cn(
+                            '',
+                            data.predictions.cityName !==
+                              data.originalAddress.cityName
+                              ? 'bg-green-100 border-b border-b-green-300'
+                              : ''
+                          )}
+                        >
+                          {data.predictions.cityName}
+                        </span>
                       </label>
                     </div>
                   </div>
@@ -141,12 +207,52 @@ export const WrongAddressModal: React.FC<WrongAddressModalProps> = ({
                         htmlFor='original'
                         className='text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 '
                       >
-                        {data?.originalAddress.street} ,{'  '}
-                        {data?.originalAddress.houseNumber} <br />
-                        <span className='bg-red-100 border-b border-b-red-300'>
+                        <span
+                          className={cn(
+                            '',
+                            data.originalAddress.street ===
+                              data.predictions?.street
+                              ? ''
+                              : 'bg-red-100 border-b border-red-300'
+                          )}
+                        >
+                          {data?.originalAddress.street}
+                        </span>{' '}
+                        ,{'  '}
+                        <span
+                          className={cn(
+                            '',
+                            data.originalAddress.houseNumber ===
+                              data.predictions?.houseNumber
+                              ? ''
+                              : 'bg-red-100 border-b border-red-300'
+                          )}
+                        >
+                          {data?.originalAddress.houseNumber}
+                        </span>
+                        <br />
+                        <span
+                          className={cn(
+                            '',
+                            data.originalAddress.postCode ===
+                              data.predictions?.postCode
+                              ? ''
+                              : 'bg-red-100 border-b border-red-300'
+                          )}
+                        >
                           {data?.originalAddress.postCode}
                         </span>{' '}
-                        {data?.originalAddress.cityName}
+                        <span
+                          className={cn(
+                            '',
+                            data.originalAddress.cityName ===
+                              data.predictions?.cityName
+                              ? ''
+                              : 'bg-red-100 border-b border-red-300'
+                          )}
+                        >
+                          {data?.originalAddress.cityName}
+                        </span>
                       </label>
                     </div>
                   </div>
@@ -162,6 +268,7 @@ export const WrongAddressModal: React.FC<WrongAddressModalProps> = ({
                     type='button'
                     className='inline-flex justify-center rounded-md border border-transparent bg-blue-100 px-4 py-2 text-sm font-medium text-blue-900 hover:bg-blue-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2'
                     onClick={() => {
+                      onConfirm();
                       onClose();
                     }}
                   >
