@@ -27,17 +27,16 @@ pnpm dev
 - Used Typescript For Type Safety Of This Application
 - Address Verification Modal
 - Some minor changes where input fields not changin value
-
-## TODO:
-
 - Email field validation
 - Adress Field Styles Where all field will be green bordred after comfirming address
 - Modal Button Action To Change Address
 
-## Why Delay?
+## TODO:
 
-- For some miss conceptions
+## Why Delay?
 
 ## When It will complete?
 
-- It will completed by today
+## What next?
+
+- if any issue found please report a bug
